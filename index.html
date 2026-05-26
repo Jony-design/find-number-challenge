@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>找数字挑战 生成器</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper-w: 297mm;
+      --paper-h: 210mm;
+      --ink: #111;
+      --muted: #6e6e73;
+      --panel: rgba(255, 255, 255, .78);
+      --panel-line: rgba(0, 0, 0, .08);
+      --soft: rgba(118, 118, 128, .12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: #161616;
+      background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, .95), transparent 34rem),
+        linear-gradient(135deg, #f5f5f7 0%, #e9ebf0 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .app {
+      min-height: 100vh;
+      padding: 22px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 18px;
+    }
+
+    .toolbar {
+      width: min(1200px, 100%);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      padding: 18px;
+      border: 1px solid var(--panel-line);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: 0 18px 60px rgba(20, 24, 32, .12);
+      backdrop-filter: blur(22px);
+    }
+
+    .brand {
+      font-size: 24px;
+      font-weight: 760;
+      letter-spacing: 0;
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: 68px 1fr;
+      align-items: start;
+      gap: 10px;
+    }
+
+    .control-grid {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .group-title {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 0 12px;
+      border: 1px solid rgba(0, 0, 0, .06);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .72);
+      font-size: 14px;
+      white-space: nowrap;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .65);
+    }
+
+    select,
+    input {
+      width: 86px;
+      border: 0;
+      outline: 0;
+      font: inherit;
+      background: transparent;
+    }
+
+    input[type="range"] {
+      width: 118px;
+      accent-color: #1d1d1f;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: #1d1d1f;
+    }
+
+    select {
+      width: 92px;
+      cursor: pointer;
+    }
+
+    .mode-field {
+      display: none;
+    }
+
+    .toolbar[data-mode="continuous"] .continuous-field,
+    .toolbar[data-mode="random"] .random-field {
+      display: inline-flex;
+    }
+
+    .status {
+      color: #4a4a4a;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    button {
+      min-height: 38px;
+      padding: 0 16px;
+      border: 1px solid #191919;
+      border-radius: 12px;
+      color: #fff;
+      background: #191919;
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      color: #191919;
+      border-color: rgba(0, 0, 0, .08);
+      background: rgba(255, 255, 255, .72);
+    }
+
+    .stage {
+      overflow: auto;
+      display: grid;
+      place-items: start center;
+      padding-bottom: 24px;
+    }
+
+    .paper {
+      width: var(--paper-w);
+      height: var(--paper-h);
+      background: #fff;
+      box-shadow: 0 18px 60px rgba(20, 24, 32, .22);
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #fff;
+    }
+
+    .cell-fill {
+      stroke: none;
+    }
+
+    .draw-line,
+    .draw-shape {
+      fill: none;
+      stroke: var(--ink);
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .number {
+      fill: var(--ink);
+      font-family: "Source Han Serif SC", "思源宋体", "Noto Serif CJK SC", "Songti SC", "SimSun", serif;
+      font-weight: 700;
+      dominant-baseline: middle;
+      text-anchor: middle;
+      paint-order: stroke;
+      stroke: #fff;
+      stroke-width: .36mm;
+      stroke-linejoin: round;
+    }
+
+    @page {
+      size: A4 landscape;
+      margin: 0;
+    }
+
+    @media print {
+      html,
+      body {
+        width: var(--paper-w);
+        height: var(--paper-h);
+        background: #fff;
+      }
+
+      .app {
+        padding: 0;
+        min-height: 0;
+        display: block;
+      }
+
+      .toolbar {
+        display: none;
+      }
+
+      .stage {
+        display: block;
+        overflow: visible;
+        padding: 0;
+      }
+
+      .paper {
+        width: var(--paper-w);
+        height: var(--paper-h);
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="toolbar" aria-label="生成设置">
+      <div class="brand">找数字挑战 生成器</div>
+      <div class="control-row">
+        <span class="group-title">数字</span>
+        <div class="control-grid">
+          <label>模式
+            <select id="numberMode">
+              <option value="continuous">连续</option>
+              <option value="random">随机</option>
+            </select>
+          </label>
+          <label class="mode-field continuous-field">从 <input id="rangeStart" type="number" min="0" max="999" value="0"></label>
+          <label class="mode-field continuous-field">到 <input id="rangeEnd" type="number" min="0" max="999" value="200"></label>
+          <label class="mode-field random-field">数量 <input id="randomCount" type="number" min="1" max="500" value="200"></label>
+          <span id="status" class="status"></span>
+        </div>
+      </div>
+      <div class="control-row">
+        <span class="group-title">样式</span>
+        <div class="control-grid">
+          <label>种子 <input id="seed" type="number" value="20260526"></label>
+          <label>线宽 <input id="lineWidth" type="range" min="0" max="2" value="0.5" step="0.02"></label>
+          <label>字号 <input id="fontSize" type="range" min="5" max="9" value="6.2" step="0.1"></label>
+          <label>圆形占比 <input id="circleCount" type="range" min="0" max="30" value="20" step="1"></label>
+          <label>随机灰阶 <input id="grayFill" type="checkbox"></label>
+        </div>
+      </div>
+      <div class="control-row">
+        <span class="group-title">操作</span>
+        <div class="control-grid">
+          <button id="randomize" class="secondary" type="button">随机种子</button>
+          <button id="print" type="button">打印</button>
+        </div>
+      </div>
+    </section>
+    <section class="stage">
+      <div class="paper">
+        <svg id="sheet" viewBox="0 0 297 210" role="img" aria-label="横版 A4 数字分割图"></svg>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const sheet = document.querySelector("#sheet");
+    const toolbar = document.querySelector(".toolbar");
+    const numberModeInput = document.querySelector("#numberMode");
+    const rangeStartInput = document.querySelector("#rangeStart");
+    const rangeEndInput = document.querySelector("#rangeEnd");
+    const randomCountInput = document.querySelector("#randomCount");
+    const seedInput = document.querySelector("#seed");
+    const lineWidthInput = document.querySelector("#lineWidth");
+    const fontSizeInput = document.querySelector("#fontSize");
+    const circleCountInput = document.querySelector("#circleCount");
+    const grayFillInput = document.querySelector("#grayFill");
+    const statusOutput = document.querySelector("#status");
+    const ns = "http://www.w3.org/2000/svg";
+    const W = 297;
+    const H = 210;
+    const margin = 5;
+
+    function mulberry32(seed) {
+      return function rand() {
+        let t = seed += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    function hashSeed(value) {
+      const text = String(value || Date.now());
+      let hash = 2166136261;
+      for (let i = 0; i < text.length; i++) {
+        hash ^= text.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+      return hash >>> 0;
+    }
+
+    function shuffle(items, rand) {
+      const copy = [...items];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function randBetween(rand, min, max) {
+      return min + (max - min) * rand();
+    }
+
+    function makeEl(name, attrs = {}) {
+      const el = document.createElementNS(ns, name);
+      for (const [key, value] of Object.entries(attrs)) {
+        el.setAttribute(key, value);
+      }
+      return el;
+    }
+
+    function pointsToString(points) {
+      return points.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(" ");
+    }
+
+    function addLine(x1, y1, x2, y2, width) {
+      sheet.appendChild(makeEl("line", {
+        x1: x1.toFixed(2),
+        y1: y1.toFixed(2),
+        x2: x2.toFixed(2),
+        y2: y2.toFixed(2),
+        class: "draw-line",
+        "stroke-width": width
+      }));
+    }
+
+    function addCircle(cx, cy, r, width) {
+      sheet.appendChild(makeEl("circle", {
+        cx: cx.toFixed(2),
+        cy: cy.toFixed(2),
+        r: r.toFixed(2),
+        class: "draw-shape",
+        "stroke-width": width
+      }));
+    }
+
+    function addCellFill(cell, color) {
+      if (cell.kind === "circle") {
+        sheet.appendChild(makeEl("circle", {
+          cx: cell.cx.toFixed(2),
+          cy: cell.cy.toFixed(2),
+          r: cell.r.toFixed(2),
+          class: "cell-fill",
+          fill: color
+        }));
+        return;
+      }
+
+      sheet.appendChild(makeEl("polygon", {
+        points: pointsToString(cell.points),
+        class: "cell-fill",
+        fill: color
+      }));
+    }
+
+    function addNumber(value, x, y, angle, size, maxLength) {
+      const text = makeEl("text", {
+        x: x.toFixed(2),
+        y: y.toFixed(2),
+        class: "number",
+        "font-size": size,
+        transform: `rotate(${angle.toFixed(1)} ${x.toFixed(2)} ${y.toFixed(2)})`
+      });
+      if (maxLength) {
+        text.setAttribute("textLength", maxLength.toFixed(2));
+        text.setAttribute("lengthAdjust", "spacingAndGlyphs");
+      }
+      text.textContent = value;
+      sheet.appendChild(text);
+    }
+
+    function polygonArea(points) {
+      let area = 0;
+      for (let i = 0; i < points.length; i++) {
+        const [x1, y1] = points[i];
+        const [x2, y2] = points[(i + 1) % points.length];
+        area += x1 * y2 - x2 * y1;
+      }
+      return area / 2;
+    }
+
+    function polygonCentroid(points) {
+      const area = polygonArea(points);
+      if (Math.abs(area) < .001) {
+        const sums = points.reduce((acc, [x, y]) => [acc[0] + x, acc[1] + y], [0, 0]);
+        return [sums[0] / points.length, sums[1] / points.length];
+      }
+      let cx = 0;
+      let cy = 0;
+      for (let i = 0; i < points.length; i++) {
+        const [x1, y1] = points[i];
+        const [x2, y2] = points[(i + 1) % points.length];
+        const cross = x1 * y2 - x2 * y1;
+        cx += (x1 + x2) * cross;
+        cy += (y1 + y2) * cross;
+      }
+      return [cx / (6 * area), cy / (6 * area)];
+    }
+
+    function distance(a, b) {
+      return Math.hypot(a[0] - b[0], a[1] - b[1]);
+    }
+
+    function normalizeAngle(angle) {
+      let result = angle;
+      while (result > 90) result -= 180;
+      while (result <= -90) result += 180;
+      return result;
+    }
+
+    function projectionSpan(points, angle) {
+      const radians = angle * Math.PI / 180;
+      const axis = [Math.cos(radians), Math.sin(radians)];
+      const normal = [-Math.sin(radians), Math.cos(radians)];
+      const along = points.map(([x, y]) => x * axis[0] + y * axis[1]);
+      const across = points.map(([x, y]) => x * normal[0] + y * normal[1]);
+      return {
+        along: Math.max(...along) - Math.min(...along),
+        across: Math.max(...across) - Math.min(...across)
+      };
+    }
+
+    function textLayoutForCell(cell, value, fontSize) {
+      if (cell.kind === "circle") {
+        return {
+          angle: 0,
+          maxLength: null
+        };
+      }
+
+      const points = cell.points;
+      const candidates = [];
+      for (let i = 0; i < points.length; i++) {
+        for (let j = i + 1; j < points.length; j++) {
+          const a = points[i];
+          const b = points[j];
+          const length = distance(a, b);
+          if (length < 1) continue;
+          const angle = normalizeAngle(Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI);
+          const span = projectionSpan(points, angle);
+          const heightPenalty = span.across < fontSize * 1.25 ? 100 : 0;
+          candidates.push({ angle, span, score: span.along - heightPenalty });
+        }
+      }
+
+      candidates.sort((a, b) => b.score - a.score);
+      const best = candidates[0] || { angle: 0, span: projectionSpan(points, 0) };
+      const digits = String(value).length;
+      const estimatedWidth = Math.max(fontSize * .7, digits * fontSize * .58);
+      const safeLength = Math.max(fontSize * digits * .42, best.span.along * .62);
+      const maxLength = estimatedWidth > safeLength ? safeLength : null;
+
+      return {
+        angle: best.angle,
+        maxLength
+      };
+    }
+
+    function keyPoint([x, y]) {
+      return `${x.toFixed(3)},${y.toFixed(3)}`;
+    }
+
+    function arcPoint(cx, cy, r, angle) {
+      const point = [
+        cx + Math.cos(angle) * r,
+        cy + Math.sin(angle) * r
+      ];
+      point.arc = true;
+      return point;
+    }
+
+    function edgeKey(a, b) {
+      const ak = keyPoint(a);
+      const bk = keyPoint(b);
+      return ak < bk ? `${ak}|${bk}` : `${bk}|${ak}`;
+    }
+
+    function addEdgesFromCells(cells, width) {
+      const edges = new Map();
+      const circles = new Map();
+      for (const cell of cells) {
+        if (cell.kind === "circle") {
+          circles.set(`${cell.cx.toFixed(3)},${cell.cy.toFixed(3)},${cell.r.toFixed(3)}`, cell);
+          continue;
+        }
+        for (let i = 0; i < cell.points.length; i++) {
+          const a = cell.points[i];
+          const b = cell.points[(i + 1) % cell.points.length];
+          if (a.arc && b.arc) continue;
+          edges.set(edgeKey(a, b), [a, b]);
+        }
+      }
+      for (const [a, b] of edges.values()) {
+        addLine(a[0], a[1], b[0], b[1], width);
+      }
+      for (const circle of circles.values()) {
+        addCircle(circle.cx, circle.cy, circle.r, width);
+      }
+    }
+
+    function addGrayFills(cells, rand) {
+      const tones = ["#ffffff", "#f8f8f8", "#f3f3f3", "#eeeeee", "#e9e9e9"];
+      const sideCells = cells.filter(cell => cell.kind !== "circle");
+      for (const cell of sideCells) {
+        const index = Math.floor(rand() * tones.length);
+        addCellFill(cell, tones[index]);
+      }
+      for (const cell of cells.filter(cell => cell.kind === "circle")) {
+        const index = 1 + Math.floor(rand() * (tones.length - 1));
+        addCellFill(cell, tones[index]);
+      }
+    }
+
+    function makeGrid(rand, targetCount, circlePercent) {
+      const circleBias = Math.min(.18, Math.max(0, circlePercent) / 100 * .55);
+      const baseCount = Math.max(1, Math.floor(targetCount * (.72 - circleBias)));
+      const aspect = (W - margin * 2) / (H - margin * 2);
+      const rows = Math.max(1, Math.round(Math.sqrt(baseCount / aspect)));
+      const cols = Math.max(1, Math.ceil(baseCount / rows));
+      const cellW = (W - margin * 2) / cols;
+      const cellH = (H - margin * 2) / rows;
+      const points = [];
+
+      for (let row = 0; row <= rows; row++) {
+        const line = [];
+        for (let col = 0; col <= cols; col++) {
+          const isEdge = row === 0 || row === rows || col === 0 || col === cols;
+          const x = margin + col * cellW + (isEdge ? 0 : randBetween(rand, -1.7, 1.7));
+          const y = margin + row * cellH + (isEdge ? 0 : randBetween(rand, -1.5, 1.5));
+          line.push([x, y]);
+        }
+        points.push(line);
+      }
+      return { points, rows, cols };
+    }
+
+    function cellId(row, col) {
+      return `${row}:${col}`;
+    }
+
+    function addCircleBlock(cells, used, g, row, col, rand) {
+      const center = g[row + 1][col + 1];
+      const left = g[row + 1][col];
+      const right = g[row + 1][col + 2];
+      const top = g[row][col + 1];
+      const bottom = g[row + 2][col + 1];
+      const radius = Math.min(
+        distance(center, left),
+        distance(center, right),
+        distance(center, top),
+        distance(center, bottom)
+      ) * randBetween(rand, .58, .66);
+      const cx = center[0];
+      const cy = center[1];
+      const arc = {
+        nw: arcPoint(cx, cy, radius, -Math.PI * .75),
+        n: arcPoint(cx, cy, radius, -Math.PI * .5),
+        ne: arcPoint(cx, cy, radius, -Math.PI * .25),
+        e: arcPoint(cx, cy, radius, 0),
+        se: arcPoint(cx, cy, radius, Math.PI * .25),
+        s: arcPoint(cx, cy, radius, Math.PI * .5),
+        sw: arcPoint(cx, cy, radius, Math.PI * .75),
+        w: arcPoint(cx, cy, radius, Math.PI)
+      };
+
+      const b = [
+        g[row][col],
+        g[row][col + 1],
+        g[row][col + 2],
+        g[row + 1][col + 2],
+        g[row + 2][col + 2],
+        g[row + 2][col + 1],
+        g[row + 2][col],
+        g[row + 1][col]
+      ];
+      const c = [arc.nw, arc.n, arc.ne, arc.e, arc.se, arc.s, arc.sw, arc.w];
+
+      for (let i = 0; i < b.length; i++) {
+        cells.push({
+          kind: "circleSide",
+          points: [b[i], b[(i + 1) % b.length], c[(i + 1) % c.length], c[i]]
+        });
+      }
+      cells.push({
+        kind: "circle",
+        cx,
+        cy,
+        r: radius,
+        points: [arc.n, arc.ne, arc.e, arc.se, arc.s, arc.sw, arc.w, arc.nw]
+      });
+
+      [cellId(row, col), cellId(row, col + 1), cellId(row + 1, col), cellId(row + 1, col + 1)].forEach(id => used.add(id));
+    }
+
+    function makeTiling(rand, targetCount, circlePercent) {
+      const grid = makeGrid(rand, targetCount, circlePercent);
+      const g = grid.points;
+      const used = new Set();
+      const cells = [];
+      const blocks = [];
+
+      for (let row = 0; row < grid.rows - 1; row++) {
+        for (let col = 0; col < grid.cols - 1; col++) {
+          blocks.push({ row, col });
+        }
+      }
+      let increments = targetCount - grid.rows * grid.cols;
+      const requestedCircles = Math.round(targetCount * circlePercent / 100 / 3);
+      const maxCircles = Math.min(requestedCircles, Math.floor(increments / 5));
+
+      let circlesMade = 0;
+      for (const block of shuffle(blocks, rand)) {
+        if (circlesMade >= maxCircles) break;
+        const { row, col } = block;
+        const ids = [cellId(row, col), cellId(row, col + 1), cellId(row + 1, col), cellId(row + 1, col + 1)];
+        if (ids.some(id => used.has(id))) continue;
+        addCircleBlock(cells, used, g, row, col, rand);
+        circlesMade += 1;
+        increments -= 5;
+      }
+
+      const autoDiamondTarget = Math.round((targetCount - circlesMade) * .3);
+      const maxDiamonds = Math.min(autoDiamondTarget, increments);
+
+      for (const block of shuffle(blocks, rand)) {
+        if (increments <= 0 || cells.filter(cell => cell.kind === "diamond").length >= maxDiamonds) break;
+        const { row, col } = block;
+        const ids = [cellId(row, col), cellId(row, col + 1), cellId(row + 1, col), cellId(row + 1, col + 1)];
+        if (ids.some(id => used.has(id))) continue;
+        ids.forEach(id => used.add(id));
+
+        cells.push({ kind: "triangle", points: [g[row][col], g[row][col + 1], g[row + 1][col]] });
+        cells.push({ kind: "triangle", points: [g[row][col + 1], g[row][col + 2], g[row + 1][col + 2]] });
+        cells.push({ kind: "triangle", points: [g[row + 1][col + 2], g[row + 2][col + 2], g[row + 2][col + 1]] });
+        cells.push({ kind: "triangle", points: [g[row + 1][col], g[row + 2][col + 1], g[row + 2][col]] });
+        cells.push({
+          kind: "diamond",
+          points: [g[row][col + 1], g[row + 1][col + 2], g[row + 2][col + 1], g[row + 1][col]]
+        });
+        increments -= 1;
+      }
+
+      const remainingRects = [];
+      for (let row = 0; row < grid.rows; row++) {
+        for (let col = 0; col < grid.cols; col++) {
+          if (!used.has(cellId(row, col))) remainingRects.push({ row, col });
+        }
+      }
+
+      const splitIds = new Set(shuffle(remainingRects, rand).slice(0, increments).map(cell => cellId(cell.row, cell.col)));
+      for (const { row, col } of remainingRects) {
+        const p1 = g[row][col];
+        const p2 = g[row][col + 1];
+        const p3 = g[row + 1][col + 1];
+        const p4 = g[row + 1][col];
+        if (splitIds.has(cellId(row, col))) {
+          if (rand() < .5) {
+            cells.push({ kind: "triangle", points: [p1, p2, p3] });
+            cells.push({ kind: "triangle", points: [p1, p3, p4] });
+          } else {
+            cells.push({ kind: "triangle", points: [p1, p2, p4] });
+            cells.push({ kind: "triangle", points: [p2, p3, p4] });
+          }
+        } else {
+          cells.push({ kind: "quad", points: [p1, p2, p3, p4] });
+        }
+      }
+
+      return cells;
+    }
+
+    function clampInteger(value, min, max, fallback) {
+      const number = Math.round(Number(value));
+      if (!Number.isFinite(number)) return fallback;
+      return Math.min(max, Math.max(min, number));
+    }
+
+    function makeNumbers(rand) {
+      if (numberModeInput.value === "random") {
+        const count = clampInteger(randomCountInput.value, 1, 500, 200);
+        randomCountInput.value = count;
+        return shuffle(Array.from({ length: 1000 }, (_, i) => i), rand).slice(0, count);
+      }
+
+      let start = clampInteger(rangeStartInput.value, 0, 999, 0);
+      let end = clampInteger(rangeEndInput.value, 0, 999, 200);
+      if (start > end) [start, end] = [end, start];
+      end = Math.min(end, start + 499);
+      rangeStartInput.value = start;
+      rangeEndInput.value = end;
+      return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+    }
+
+    function updateMode() {
+      toolbar.dataset.mode = numberModeInput.value;
+    }
+
+    function generate() {
+      const rand = mulberry32(hashSeed(seedInput.value));
+      const lineWidth = Number(lineWidthInput.value);
+      const fontSize = Number(fontSizeInput.value);
+      const circlePercent = Number(circleCountInput.value);
+      sheet.replaceChildren();
+
+      updateMode();
+      const numbers = shuffle(makeNumbers(rand), rand);
+      const cells = makeTiling(rand, numbers.length, circlePercent);
+      if (grayFillInput.checked) {
+        addGrayFills(cells, mulberry32(hashSeed(`${seedInput.value}-gray`)));
+      }
+      addEdgesFromCells(cells, lineWidth);
+
+      const placed = shuffle(cells, rand);
+      for (let i = 0; i < numbers.length; i++) {
+        const cell = placed[i];
+        const [x, y] = cell.kind === "circle" ? [cell.cx, cell.cy] : polygonCentroid(cell.points);
+        const layout = textLayoutForCell(cell, numbers[i], fontSize);
+        addNumber(numbers[i], x, y, layout.angle, fontSize, layout.maxLength);
+      }
+      const actualCircles = cells.filter(cell => cell.kind === "circle").length;
+      statusOutput.textContent = `${numbers.length} 个数字，${actualCircles} 个圆，最多500个数字`;
+    }
+
+    document.querySelector("#randomize").addEventListener("click", () => {
+      seedInput.value = Math.floor(Math.random() * 100000000);
+      generate();
+    });
+    document.querySelector("#print").addEventListener("click", () => window.print());
+    [numberModeInput, rangeStartInput, rangeEndInput, randomCountInput, seedInput, lineWidthInput, fontSizeInput, circleCountInput, grayFillInput].forEach(input => {
+      input.addEventListener("input", generate);
+    });
+
+    updateMode();
+    generate();
+  </script>
+</body>
+</html>
